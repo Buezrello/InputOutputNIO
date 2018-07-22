@@ -1,6 +1,10 @@
 package com.igindin;
 
 import java.io.*;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -9,35 +13,48 @@ import java.util.*;
 public class Locations implements Map<Integer, Location> {
     private static Map<Integer, Location> locations = new LinkedHashMap<Integer, Location>();
 
-    public static void main(String[] args) throws IOException {
-        try (ObjectOutputStream locFile = new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream("locations.dat")))) {
+    public static void main(String[] args) {
+
+        Path locPath = FileSystems.getDefault().getPath("locations_big.txt");
+        Path dirPath = FileSystems.getDefault().getPath("directions_big.txt");
+
+        try (BufferedWriter locFile = Files.newBufferedWriter(locPath);
+             BufferedWriter dirFile = Files.newBufferedWriter(dirPath)) {
+
             for (Location location : locations.values()) {
-                locFile.writeObject(location);
+                locFile.write(location.getLocationID() + "," + location.getDescription() + "\n");
+                for (String direction : location.getExits().keySet()) {
+                    if (!direction.equalsIgnoreCase("Q")) {
+                        dirFile.write(location.getLocationID() + "," + direction + ","
+                                + location.getExits().get(direction) + "\n");
+                    }
+                }
             }
+        } catch (IOException e) {
+            System.out.println("IOException: " + e.getMessage());
         }
     }
+
 
     static {
 
-        try(ObjectInputStream locFile = new ObjectInputStream(new BufferedInputStream(new FileInputStream("locations.dat")))) {
-            boolean eof = false;
-            while (!eof) {
-                try {
-                    Location location = (Location) locFile.readObject();
-                    System.out.println("Read location " + location.getLocationID() + " : " + location.getDescription());
-                    System.out.println("Found " + location.getExits().size() + " exits");
-                    locations.put(location.getLocationID(), location);
-                } catch (EOFException e) {
-                    eof = true;
-                } catch (ClassNotFoundException e) {
-                    System.out.println("ClassNotFoundException " + e.getMessage());
-                }
-            }
-        } catch(IOException io) {
-            System.out.println("IO Exception " + io.getMessage());
-        }
+        Path locPath = FileSystems.getDefault().getPath("locations_big.txt");
+        Path dirPath = FileSystems.getDefault().getPath("directions_big.txt");
 
+        try (Scanner scanner = new Scanner(Files.newBufferedReader(locPath))) {
+            scanner.useDelimiter(",");
+            while (scanner.hasNextLine()) {
+                int loc = scanner.nextInt();
+                scanner.skip(scanner.delimiter());
+                String description = scanner.nextLine();
+                System.out.println("Imported loc: " + loc + ": " + description);
+                locations.put(loc, new Location(loc, description, null));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
+    
     @Override
     public int size() {
         return locations.size();
